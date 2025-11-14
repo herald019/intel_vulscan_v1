@@ -1,8 +1,0 @@
-python-owasp-zap-v2.4
-requests
-pandas 
-scikit-learn 
-lightgbm 
-joblib
-tensorflow==2.13.0 
-matplotlib
