@@ -1,6 +1,4 @@
-# ------------------------
 # Python
-# ------------------------
 __pycache__/
 *.pyc
 *.pyo
@@ -20,9 +18,7 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# ------------------------
 # Machine Learning Artifacts
-# ------------------------
 models/
 *.h5
 *.hdf5
@@ -30,9 +26,7 @@ models/
 *.pb
 *.ckpt
 
-# ------------------------
 # Runtime Files
-# ------------------------
 reports/
 logs/
 *.log
@@ -43,11 +37,12 @@ traffic/
 zap-output/
 zap-logs/
 
-# ------------------------
 # Build / cache
-# ------------------------
 dist/
 build/
 *.egg-info/
 .cache/
 .temp/
+
+#data
+scanner.db
