@@ -6,6 +6,9 @@ from src import db, scanner, report_generator, analytics
 from src.models.risk import train_risk
 from src.models.anomaly import train_anomaly
 
+from src.ai.crawler.train_crawler import train_crawler
+from src.ai.crawler.run_crawler import run_crawler
+
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 REPORTS_DIR = os.path.join(PROJECT_ROOT, "reports")
@@ -58,6 +61,12 @@ def main():
     parser.add_argument("--train-risk", action="store_true", help="Train the risk prediction model")
     parser.add_argument("--train-anomaly", action="store_true", help="Train the LSTM anomaly detection model")
 
+    # AI Models (DL)
+    parser.add_argument("--train-crawler", type=str,
+                    help="Train the DQN Smart Crawler on a target URL")
+    parser.add_argument("--run-crawler", type=str,
+                    help="Run the trained Smart Crawler on a target URL")
+
     args = parser.parse_args()
 
     # Init DB every time
@@ -90,6 +99,13 @@ def main():
 
     elif args.train_anomaly:
         train_anomaly.train_and_save()
+
+    elif args.train_crawler:
+        train_crawler(args.train_crawler)
+
+    elif args.run_crawler:
+        run_crawler(args.run_crawler)
+
 
     else:
         parser.print_help()
