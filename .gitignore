@@ -18,20 +18,21 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Machine Learning Artifacts
-models/
+# Machine Learning ArtifactsS
 *.h5
 *.hdf5
 *.model
 *.pb
 *.ckpt
+*.json
+*.pkl
+*.jsonl
 
 # Runtime Files
 reports/
 logs/
 *.log
-traffic/
-**/traffic/
+
 
 # ZAP output directories
 zap-output/
