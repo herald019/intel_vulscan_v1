@@ -1,106 +1,121 @@
 # src/ai/crawler/crawler_env.py
-
 import numpy as np
-import random
 from zapv2 import ZAPv2
-
+import time
 
 class CrawlerEnv:
     """
-    Environment for the DQN Smart Crawler.
-    State = flattened representation of (current_index, visited_flags)
-    Action = index of next URL to visit
-    Reward = based on alerts, new pages discovered, response characteristics
+    DQN Crawler Environment
+    State: [current_idx, visited_flags[]]
+    Action: index of next URL
     """
 
     def __init__(self, target, zap_proxy="http://localhost:8090"):
         self.target = target
         self.zap = ZAPv2(proxies={'http': zap_proxy, 'https': zap_proxy})
 
-        # State vars
         self.urls = []
         self.current_idx = 0
         self.visited = []
 
-        # After reset, spider gathers initial list of URLs
-        self.reset()
-
-    # -----------------------------------
+    # -----------------------------------------------------
     def reset(self):
-        """
-        Spider the site FIRST to get all URLs.
-        """
-        spider_id = self.zap.spider.scan(self.target)
-        while int(self.zap.spider.status(spider_id)) < 100:
-            pass
+        """Spider the site and initialize state"""
 
-        # Collect discovered URLs
-        results = self.zap.spider.results(spider_id)
+        spider_id = self.zap.spider.scan(self.target)
+        print("[Crawler] Spidering target...")
+
+        # Wait until spider finishes (sleep to avoid busy loop)
+        while True:
+            try:
+                status = int(self.zap.spider.status(spider_id))
+            except Exception:
+                status = 100
+            if status >= 100:
+                break
+            time.sleep(0.5)
+
+        # Get discovered URLs
+        try:
+            results = self.zap.spider.results(spider_id)
+        except Exception:
+            results = []
+
+        # HANDLE EMPTY RESULTS
+        if not results:
+            # fallback to target only
+            print("[!] Spider returned ZERO URLs! Using fallback:", self.target)
+            results = [self.target]
+
+        # Ensure target is included
         if self.target not in results:
             results = [self.target] + results
 
-        self.urls = list(dict.fromkeys(results))   # remove duplicates
+        # Normalize + remove duplicates while preserving order
+        self.urls = list(dict.fromkeys(results))
         self.visited = [0] * len(self.urls)
         self.current_idx = 0
 
-        return self._get_state()
+        # Return state + minor info
+        state = self._get_state()
+        info = {"urls": self.urls}
 
-    # -----------------------------------
+        return state, info
+
+    # -----------------------------------------------------
     def _get_state(self):
-        """
-        State is represented as:
-        [current_index, visited_0, visited_1, ... visited_n]
-        """
         visited_arr = np.array(self.visited, dtype=np.float32)
-        return np.concatenate(([self.current_idx], visited_arr))
+        # state vector: [current_idx] + visited_flags
+        return np.concatenate(([float(self.current_idx)], visited_arr))
 
-    # -----------------------------------
+    # -----------------------------------------------------
     def step(self, action_idx):
-        """
-        Execute the action: visit URL at index action_idx
-        """
+        """Execute one crawling action"""
+
         if action_idx < 0 or action_idx >= len(self.urls):
-            # illegal action
-            return self._get_state(), -5, True, {"error": "invalid_action"}
+            return self._get_state(), -5.0, True, {"error": "invalid_action"}
 
         url = self.urls[action_idx]
 
-        # CALL ZAP
         try:
             self.zap.urlopen(url)
-        except:
+        except Exception:
+            # network/zap error -> penalize slightly but keep running
             pass
 
-        # REWARD: base reward for exploring
         reward = 1.0
 
-        # REWARD: new visit?
         if self.visited[action_idx] == 0:
-            reward += 2.0            # exploring new URL is good
+            reward += 2.0
         else:
-            reward -= 1.0            # revisiting gives penalty
+            reward -= 1.0
 
         self.visited[action_idx] = 1
         self.current_idx = action_idx
 
-        # Get any alerts for this URL
-        alerts = self.zap.core.alerts(baseurl=url)
-        reward += len(alerts) * 3.0   # alerts are valuable
+        # get alerts for this URL; if zap errors, treat as no alerts
+        try:
+            alerts = self.zap.core.alerts(baseurl=url) or []
+        except Exception:
+            alerts = []
 
-        # Episode termination triggers
+        reward += len(alerts) * 3.0
+
         done = False
-        if sum(self.visited) == len(self.visited):
+        if sum(self.visited) >= len(self.visited):
             done = True
-        if len(alerts) > 5:           # too many = unstable
+        if len(alerts) > 5:
             done = True
 
         next_state = self._get_state()
-        return next_state, reward, done, {"url": url, "alerts": alerts}
+        info = {"url": url, "alerts": alerts}
 
-    # -----------------------------------
+        return next_state, float(reward), done, info
+
+    # -----------------------------------------------------
     def action_space_size(self):
         return len(self.urls)
 
     def state_space_size(self):
         # state = [current_idx + visited_flags]
-        return 1 + len(self.urls)
+        return 1 + max(0, len(self.visited))

@@ -6,4 +6,6 @@ lightgbm
 joblib
 tensorflow==2.13.0 
 matplotlib
+keras
 numpy
+zapv2 

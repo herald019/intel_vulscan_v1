@@ -21,8 +21,8 @@ class DQNAgent:
         memory_size=5000,
         batch_size=32
     ):
-        self.state_size = state_size
-        self.action_size = action_size
+        self.state_size = int(state_size)
+        self.action_size = int(action_size)
         self.lr = lr
         self.gamma = gamma
 
@@ -33,7 +33,11 @@ class DQNAgent:
         self.memory = deque(maxlen=memory_size)
         self.batch_size = batch_size
 
-        self.model = self._build_model()
+        # build model only if action_size > 0
+        if self.action_size > 0 and self.state_size > 0:
+            self.model = self._build_model()
+        else:
+            self.model = None
 
     # -----------------------------------
     def _build_model(self):
@@ -46,38 +50,48 @@ class DQNAgent:
 
     # -----------------------------------
     def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+        # ensure stored as numpy arrays for consistency
+        self.memory.append((np.array(state, dtype=np.float32),
+                            int(action),
+                            float(reward),
+                            np.array(next_state, dtype=np.float32),
+                            bool(done)))
 
     # -----------------------------------
     def act(self, state):
+        # if no actions available, return 0 safely
+        if self.action_size == 0:
+            return 0
         if np.random.rand() < self.epsilon:
             return random.randrange(self.action_size)
+        if self.model is None:
+            return random.randrange(self.action_size)
         q = self.model.predict(state.reshape(1, -1), verbose=0)
-        return np.argmax(q[0])
+        return int(np.argmax(q[0]))
 
     # -----------------------------------
     def train_replay(self):
+        if self.model is None:
+            return
         if len(self.memory) < self.batch_size:
             return
 
         batch = random.sample(self.memory, self.batch_size)
 
-        states = []
-        targets = []
+        states = np.zeros((self.batch_size, self.state_size), dtype=np.float32)
+        targets = np.zeros((self.batch_size, self.action_size), dtype=np.float32)
 
-        for state, action, reward, next_state, done in batch:
+        for i, (state, action, reward, next_state, done) in enumerate(batch):
+            states[i] = state
+            q_values = self.model.predict(state.reshape(1, -1), verbose=0)[0]
             target = reward
             if not done:
                 next_qs = self.model.predict(next_state.reshape(1, -1), verbose=0)[0]
                 target += self.gamma * np.max(next_qs)
-
-            q_values = self.model.predict(state.reshape(1, -1), verbose=0)[0]
             q_values[action] = target
+            targets[i] = q_values
 
-            states.append(state)
-            targets.append(q_values)
-
-        self.model.fit(np.array(states), np.array(targets), epochs=1, verbose=0)
+        self.model.fit(states, targets, epochs=1, verbose=0)
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
