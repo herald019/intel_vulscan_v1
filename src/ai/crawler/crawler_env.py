@@ -119,3 +119,15 @@ class CrawlerEnv:
     def state_space_size(self):
         # state = [current_idx + visited_flags]
         return 1 + max(0, len(self.visited))
+    
+
+    # -----------------------------------------------------    
+    def get_padded_state(self, target_state_size):
+        state = self._get_state()
+        if len(state) < target_state_size:
+            # pad zeros
+            padded = np.zeros(target_state_size, dtype=np.float32)
+            padded[:len(state)] = state
+            return padded
+        else:
+            return state[:target_state_size]

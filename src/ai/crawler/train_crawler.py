@@ -49,9 +49,17 @@ def train_crawler(target, episodes=20, zap_proxy="http://localhost:8090"):
     model_dir = os.path.join("models", "crawler")
     os.makedirs(model_dir, exist_ok=True)
     model_path = os.path.join(model_dir, "crawler_dqn.h5")
+    agent.model.save(model_path)
 
-    if agent.model is not None:
-        agent.model.save(model_path)
-        print(f"[+] Saved trained crawler model: {model_path}")
-    else:
-        print("[!] Agent model was not created; nothing saved.")
+    # NEW: Save metadata
+    import json
+    meta = {
+        "state_size": state_size,
+        "action_size": action_size
+    }
+    with open(os.path.join(model_dir, "metadata.json"), "w") as f:
+        json.dump(meta, f, indent=4)
+
+    print(f"[+] Saved trained crawler model: {model_path}")
+    print("[+] Saved crawler metadata.")
+
