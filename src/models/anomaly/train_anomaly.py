@@ -31,7 +31,7 @@ def build_model(seq_len):
     return model
 
 
-def train_and_save(seq_len=20, batch_size=16, epochs=1):
+def train_and_save(seq_len=20, batch_size=16, epochs=10):
     print("[*] Training anomaly detection model...")
 
     X = build_sequences_from_jsonl(seq_len=seq_len)
